@@ -30,6 +30,7 @@ public class PearlPlusConfig {
     public static final class AutoDetectConfig {
         public boolean enabled = true;
         public boolean temporaryMode = false;
+        // Deprecated: owner fallback by nearest player was removed because it can claim pearls for bystanders.
         public boolean distanceCheck = false;
         public int temporaryRemovalRange = 64; //blocks
     }

@@ -156,7 +156,7 @@ public class AutoDetectModule extends Module {
                 ));
             } else {
                 tracked.updatePosition(position, now);
-                OwnerInfo owner = selectOwner(resolvedOwner, storedOwner, tracked.owner());
+                OwnerInfo owner = stickyOwner(tracked.owner(), resolvedOwner, storedOwner);
                 tracked.setOwner(owner);
                 if (storedEntry != null && storedEntry.pearl().pearlId != null) {
                     tracked.setPearlId(storedEntry.pearl().pearlId);
@@ -390,6 +390,13 @@ public class AutoDetectModule extends Module {
         return mergeOwnerInfo(primary, mergeOwnerInfo(secondary, fallback));
     }
 
+    private OwnerInfo stickyOwner(OwnerInfo trackedOwner, OwnerInfo resolvedOwner, OwnerInfo storedOwner) {
+        if (trackedOwner != null) {
+            return mergeOwnerInfo(trackedOwner, resolvedOwner);
+        }
+        return selectOwner(resolvedOwner, storedOwner, null);
+    }
+
     private OwnerInfo mergeOwnerInfo(OwnerInfo preferred, OwnerInfo fallback) {
         if (preferred == null) {
             return fallback;
@@ -416,11 +423,7 @@ public class AutoDetectModule extends Module {
     }
 
     private Optional<OwnerInfo> resolveOwnerInfo(Entity pearl, Map<Integer, Entity> entities) {
-        Optional<OwnerInfo> resolved = resolveOwnerFromProjectileOwner(pearl, entities);
-        if (resolved.isPresent() || !PLUGIN_CONFIG.autoDetect.distanceCheck) {
-            return resolved;
-        }
-        return resolveOwnerFromClosestPlayer(pearl, entities);
+        return resolveOwnerFromProjectileOwner(pearl, entities);
     }
 
     private Optional<OwnerInfo> resolveOwnerFromProjectileOwner(Entity pearl, Map<Integer, Entity> entities) {
@@ -436,50 +439,6 @@ public class AutoDetectModule extends Module {
 
         Entity ownerEntity = entities.get(ownerEntityId);
         UUID ownerUuid = ownerEntity != null ? ownerEntity.getUuid() : null;
-        String ownerName = ownerUuid != null ? resolveOwnerName(ownerUuid).orElse(null) : null;
-
-        if (ownerUuid == null && ownerName == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new OwnerInfo(ownerUuid, ownerName));
-    }
-
-    private Optional<OwnerInfo> resolveOwnerFromClosestPlayer(Entity pearl, Map<Integer, Entity> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Optional<UUID> botUuid = determineBotUuid();
-        Entity closest = null;
-        double closestDistanceSq = 2.0;
-        double pearlX = pearl.getX();
-        double pearlY = pearl.getY();
-        double pearlZ = pearl.getZ();
-
-        for (Entity entity : entities.values()) {
-            if (entity.getEntityType() != EntityType.PLAYER) {
-                continue;
-            }
-            UUID candidateUuid = entity.getUuid();
-            if (botUuid.isPresent() && botUuid.get().equals(candidateUuid)) {
-                continue;
-            }
-
-            double dx = entity.getX() - pearlX;
-            double dy = entity.getY() - pearlY;
-            double dz = entity.getZ() - pearlZ;
-            double distanceSq = dx * dx + dy * dy + dz * dz;
-            if (distanceSq < closestDistanceSq) {
-                closestDistanceSq = distanceSq;
-                closest = entity;
-            }
-        }
-
-        if (closest == null) {
-            return Optional.empty();
-        }
-
-        UUID ownerUuid = closest.getUuid();
         String ownerName = ownerUuid != null ? resolveOwnerName(ownerUuid).orElse(null) : null;
 
         if (ownerUuid == null && ownerName == null) {
